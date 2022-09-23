@@ -46,16 +46,12 @@ public class CustomerController {
 //                .getCustomers(page, size, sort, pagedResourcesAssembler)).withSelfRel();
 //        CollectionModel<Customer> result = CollectionModel.of(customers, selfLink);
 
-        Link selfLink = WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(CustomerController.class)
-                .getCustomers(page, size, sort)).withSelfRel();
-
         List<Customer> customers = customerService.getCustomers();
         return ResponseEntity.ok(
                 pagedCustomerResourcesAssembler.toModel(
                         new PageImpl<>(customers, PageRequest.of(page, size, Sort.by(sort)), 1000),
                         customer -> customer.add(WebMvcLinkBuilder.linkTo(WebFluxLinkBuilder.methodOn(CustomerController.class)
-                            .getCustomerById(customer.getCustomerId())).withSelfRel()),
-                        selfLink
+                            .getCustomerById(customer.getCustomerId())).withSelfRel())
                 )
         );
     }
@@ -64,16 +60,12 @@ public class CustomerController {
     public ResponseEntity<PagedModel<Customer>> getCustomers(
             @PageableDefault Pageable pageRequest
     ) {
-        Link selfLink = WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(CustomerController.class)
-                .getCustomers(pageRequest)).withSelfRel();
-
         List<Customer> customers = customerService.getCustomers();
         return ResponseEntity.ok(
                 pagedCustomerResourcesAssembler.toModel(
                         new PageImpl<>(customers, pageRequest, 1000),
                         customer -> customer.add(WebMvcLinkBuilder.linkTo(WebFluxLinkBuilder.methodOn(CustomerController.class)
-                            .getCustomerById(customer.getCustomerId())).withSelfRel()),
-                        selfLink
+                            .getCustomerById(customer.getCustomerId())).withSelfRel())
                 )
         );
     }
