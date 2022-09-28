@@ -1,0 +1,273 @@
+openapi: 3.0.0
+info:
+  version: 0.0.0
+  title: HATEOAS Example
+servers:
+  - url: http://localhost:8080/
+    description: Local environment
+paths:
+  /customers:
+    get:
+      summary: Read the existing customers
+      operationId: getCustomers
+      parameters:
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/sizeParam'
+        - $ref: '#/components/parameters/sortParam'
+        - $ref: '#/components/parameters/fieldsParam'
+      responses:
+        '200':
+          description: List of customers
+          content:
+            application/hal+json:
+              schema:
+                type: object
+                properties:
+                  _embedded:
+                    type: object
+                    properties:
+                      customers:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HateoasCustomer'
+                  _links:
+                    $ref: '#/components/schemas/PaginationLinks'
+                  page:
+                    $ref: '#/components/schemas/Page'
+    post:
+      summary: Creates a customer and returns the created customer
+      operationId: createCustomer
+      requestBody:
+        required: true
+        description: A JSON object that contains the customer name and company name.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Customer'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/HateoasCustomer'
+
+  /customers/{customerId}:
+    get:
+      summary: Gets a customer by ID
+      operationId: getCustomer
+      parameters:
+        - in: path
+          name: customerId
+          required: true
+          schema:
+            type: string
+            format: UUID
+      responses:
+        '200':
+          description: An HATEOAS wrap of Customer
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/HateoasCustomer'
+        '400':
+          description: There is something wrong with your request
+        '404':
+          description: Customer with the given customerId doesn't exist
+        '500':
+          description: There is something wrong on the server-side (technical problem)
+
+  '/customers/{customerId}/orders':
+    get:
+      summary: Read the Orders of a specific Customer
+      operationId: getCustomerOrders
+      parameters:
+        - in: path
+          name: customerId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of Orders
+          content:
+            application/hal+json:
+              schema:
+                type: object
+                properties:
+                  _embedded:
+                    type: object
+                    properties:
+                      customers:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HateoasOrder'
+                  _links:
+                    $ref: '#/components/schemas/PaginationLinks'
+                  page:
+                    $ref: '#/components/schemas/Page'
+
+components:
+  schemas:
+    Customer:
+      type: object
+      properties:
+        customerId:
+          type: string
+        customerName:
+          type: string
+        companyName:
+          type: string
+
+    HateoasCustomer:
+      type: object
+      properties:
+        customerId:
+          type: string
+        customerName:
+          type: string
+        companyName:
+          type: string
+        _links:
+          type: object
+          properties:
+            orders: # Template HAL ==> https://stateless.group/hal_specification.html
+              type: object
+              properties:
+                href:
+                  type: string
+                templated:
+                  type: boolean
+            self:
+              $ref: '#/components/schemas/Link'
+
+# FIXME: This following definition is compliant with the OAS3 Spec: https://swagger.io/docs/specification/data-models/oneof-anyof-allof-not/#allof
+# FIXME: This following definition is not working for the following validation errors :
+# FIXME: "/allOf/0: Object instance has properties which are not allowed by the schema: [\"_links\"]",
+# FIXME: "/allOf/1: Object instance has properties which are not allowed by the schema: [\"companyName\",\"customerId\",\"customerName\"]"
+# FIXME: because com.github.fge.jsonschema.keyword.validator.draftv4.AllOfValidator is bugged in Maven dependency `com.github.java-json-tools:json-schema-validator:2.2.14`
+# FIXME: Solution is to define the following object as a brand new object without inheritance (See previous HateoasCustomer schema definition)
+#    HateoasCustomer:
+#      allOf:
+#        - $ref: '#/components/schemas/Customer'
+#        - type: object
+#          properties:
+#            _links:
+#              type: object
+#              properties:
+#                orders: # Template HAL ==> https://stateless.group/hal_specification.html
+#                  type: object
+#                  properties:
+#                    href:
+#                      type: string
+#                    templated:
+#                      type: boolean
+#                self:
+#                  $ref: '#/components/schemas/Link'
+
+    HateoasOrder:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: UUID
+        quantity:
+          type: number
+          format: float
+        price:
+          type: number
+          format: float
+        _links:
+          type: object
+          properties:
+            orders: # Template HAL ==>
+              type: object
+              properties:
+                href:
+                  type: string
+                templated:
+                  type: boolean
+            self:
+              $ref: '#/components/schemas/Link'
+
+    Link:
+      type: object
+      properties:
+        href:
+          type: string
+
+    TemplatedLink:
+      description: Templated link as defined in the HAL Spec https://stateless.group/hal_specification.html
+      type: object
+      properties:
+        href:
+          type: string
+        templated:
+          type: boolean
+
+    PaginationLinks:
+      type: object
+      properties:
+        first:
+          description: Link to the first page of the resources
+          $ref: '#/components/schemas/TemplatedLink'
+        next:
+          $ref: '#/components/schemas/TemplatedLink'
+        self:
+          $ref: '#/components/schemas/Link'
+        previous:
+          $ref: '#/components/schemas/TemplatedLink'
+        last:
+          $ref: '#/components/schemas/TemplatedLink'
+
+    Page:
+      type: object
+      properties:
+        size:
+          type: integer
+          format: int64
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int64
+        number:
+          type: integer
+          format: int64
+
+  parameters:
+    pageParam:
+      name: page
+      in: query
+      description: Page number of paginated request
+      required: false
+      schema:
+        type: integer
+        format: int32
+        default: 0
+    sizeParam:
+      name: size
+      in: query
+      description: Number of items in the requested page
+      required: false
+      schema:
+        type: integer
+        format: int32
+        default: 100
+    sortParam:
+      name: sort
+      in: query
+      description: The fields on which you want to sort the items
+      required: false
+      schema:
+        type: string
+    fieldsParam:
+      name: fields
+      in: query
+      description: The fields you want in the response
+      schema:
+        type: array
+        items:
+          type: string
+

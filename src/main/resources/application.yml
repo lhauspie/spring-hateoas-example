@@ -1,0 +1,3 @@
+springdoc:
+  api-docs:
+    enabled: false # This to avoid springdoc to generate swagger.json because we write our own
