@@ -34,6 +34,12 @@ paths:
                     $ref: '#/components/schemas/PaginationLinks'
                   page:
                     $ref: '#/components/schemas/Page'
+        '400':
+          description: There is something wrong with your request
+          content:
+            application/json:
+              schema:
+                type: object # FIXME : define the format of error body
     post:
       summary: Creates a customer and returns the created customer
       operationId: createCustomer
@@ -76,6 +82,11 @@ paths:
           description: Customer with the given customerId doesn't exist
         '500':
           description: There is something wrong on the server-side (technical problem)
+          content:
+            application/json:
+              schema:
+                type: object
+
 
   '/customers/{customerId}/orders':
     get:
@@ -245,6 +256,7 @@ components:
       schema:
         type: integer
         format: int32
+        minimum: 0
         default: 0
     sizeParam:
       name: size
@@ -254,6 +266,7 @@ components:
       schema:
         type: integer
         format: int32
+        minimum: 1
         default: 100
     sortParam:
       name: sort
