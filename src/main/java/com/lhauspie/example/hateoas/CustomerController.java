@@ -17,7 +17,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.reactive.WebFluxLinkBuilder.methodOn;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Validated
 @RestController
@@ -30,11 +30,11 @@ public class CustomerController {
     static final LinkRelation ORDERS = LinkRelation.of("orders");
 
     @GetMapping(value = "", produces = "application/hal+json")
-    public ResponseEntity<PagedModel<Customer>> getCustomers(
+    public ResponseEntity<MappingJacksonValue<PagedModel<Customer>>> getCustomers(
             @PositiveOrZero @RequestParam(required = false, defaultValue = "0") Long page,
             @Min(1) @RequestParam(required = false, defaultValue = "100") Long size,
             @RequestParam(required = false) Optional<List<String>> sort,
-            @RequestParam(required = false) Optional<List<String>> fields // FIXME: How to implement this ?
+            @RequestParam(required = false) Optional<List<String>> fields
     ) {
         List<Customer> customers = customerService.getCustomers()
                 .stream().map(customer -> customer
@@ -45,35 +45,40 @@ public class CustomerController {
         long totalElements = 1000L; // TODO : this information should come from the service layer
 
         return ResponseEntity.ok(
-                HateoasUtils.toPagedModel(
-                        customers,
-                        new PageMetadata(size, page, totalElements),
-                        (aPage, aSize) -> linkTo(WebMvcLinkBuilder.methodOn(CustomerController.class).getCustomers(aPage, aSize, sort, fields))
+                new MappingJacksonValue(
+                        HateoasUtils.toPagedModel(
+                                customers,
+                                new PageMetadata(size, page, totalElements),
+                                (aPage, aSize) -> linkTo(methodOn(CustomerController.class).getCustomers(aPage, aSize, sort, fields))
+                        ),
+                        fields
                 )
         );
     }
 
     @GetMapping(value = "/{customerId}", produces = "application/hal+json")
-    public ResponseEntity<Customer> getCustomerById(@PathVariable UUID customerId) {
+    public ResponseEntity<MappingJacksonValue<Customer>> getCustomerById(@PathVariable UUID customerId) {
         Customer customer = customerService.getCustomerDetail(customerId);
         if (customer == null) {
             return ResponseEntity.notFound().build();
         }
         customer.add(
                 linkTo(CustomerController.class).slash(customer.getCustomerId()).withSelfRel().expand(),
-                linkTo(WebMvcLinkBuilder.methodOn(CustomerController.class).getOrdersForCustomer(customerId, null, null, Optional.empty(), Optional.empty())).withRel(ORDERS)
+                linkTo(methodOn(CustomerController.class).getOrdersForCustomer(customerId, null, null, Optional.empty(), Optional.empty())).withRel(ORDERS)
         );
-        return ResponseEntity.ok(customer);
+        return ResponseEntity.ok(
+                MappingJacksonValue.of(customer)
+        );
     }
 
 
     @GetMapping(value = "/{customerId}/orders", produces = {"application/hal+json"})
-    public ResponseEntity<PagedModel<Order>> getOrdersForCustomer(
+    public ResponseEntity<MappingJacksonValue<PagedModel<Order>>> getOrdersForCustomer(
             @PathVariable final UUID customerId,
             @RequestParam(required = false, defaultValue = "0") Long page,
             @RequestParam(required = false, defaultValue = "100") Long size,
             @RequestParam(required = false) Optional<List<String>> sort,
-            @RequestParam(required = false) Optional<List<String>> fields // FIXME: How to implement this ?
+            @RequestParam(required = false) Optional<List<String>> fields
     ) {
         List<Order> orders = orderService.getAllOrdersForCustomer(customerId)
                 .stream().map(order -> order
@@ -83,20 +88,25 @@ public class CustomerController {
         long totalElements = 100L; // TODO : this information should come from the service layer
 
         return ResponseEntity.ok(
-                HateoasUtils.toPagedModel(
-                        orders,
-                        new PageMetadata(size, page, totalElements),
-                        (aPage, aSize) -> linkTo(WebMvcLinkBuilder.methodOn(CustomerController.class).getOrdersForCustomer(customerId, aPage, aSize, sort, fields))
+                MappingJacksonValue.of(
+                        HateoasUtils.toPagedModel(
+                                orders,
+                                new PageMetadata(size, page, totalElements),
+                                (aPage, aSize) -> linkTo(methodOn(CustomerController.class).getOrdersForCustomer(customerId, aPage, aSize, sort, fields))
+                        ),
+                        fields
                 )
         );
     }
 
     @GetMapping(value = "/{customerId}/orders/{orderId}", produces = {"application/hal+json"})
-    public Order getOrderById(@PathVariable final UUID customerId, @PathVariable final String orderId) {
+    public ResponseEntity<MappingJacksonValue<Order>> getOrderById(@PathVariable final UUID customerId, @PathVariable final String orderId) {
         Order order = orderService.getOrder(customerId, orderId);
         order.add(
                 linkTo(methodOn(CustomerController.class).getOrderById(customerId, orderId)).withSelfRel()
         );
-        return order;
+        return ResponseEntity.ok(
+                MappingJacksonValue.of(order)
+        );
     }
 }

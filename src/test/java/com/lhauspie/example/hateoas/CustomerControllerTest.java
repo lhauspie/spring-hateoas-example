@@ -8,6 +8,9 @@ import com.atlassian.oai.validator.model.Request;
 import com.atlassian.oai.validator.model.Response;
 import com.atlassian.oai.validator.report.ValidationReport;
 import org.apache.commons.lang3.NotImplementedException;
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.core.StringContains;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
@@ -106,15 +109,15 @@ public class CustomerControllerTest {
                 .andExpect(openApi().isValid(OA3_URL));
     }
 
-     @Test // FIXME : Why this is failing and not responds with a 500 StatusCode ?
+     @Test
     public void getCustomerByIdReturns500ServerError() throws Exception {
         Mockito.when(customerService.getCustomerDetail(ArgumentMatchers.any(UUID.class)))
                 .thenThrow(new NotImplementedException("For testing purpose"));
 
         mockMvc.perform(get("/customers/0a818933-087d-47f2-ad83-2f986ed087eb"))
                 .andDo(result -> System.out.println(result.getResponse().getContentAsString()))
-                .andExpect(status().isInternalServerError()) // FIXME : Assertion never reached because of the previous exception
-                .andExpect(isResponseValid(OA3_URL));        // FIXME : Assertion never reached because of the previous exception
+                .andExpect(status().isInternalServerError())
+                .andExpect(isResponseValid(OA3_URL));
     }
 
     @Test
@@ -170,7 +173,14 @@ public class CustomerControllerTest {
         mockMvc.perform(get("/customers?fields=customerId"))
                 .andDo(result -> System.out.println(result.getResponse().getContentAsString()))
                 .andExpect(status().isOk())
-                .andExpect(openApi().isValid(OA3_URL));
+                .andExpect(openApi().isValid(OA3_URL))
+                .andExpect(result ->
+                        MatcherAssert.assertThat(
+                                result.getResponse().getContentAsString(),
+                                CoreMatchers.not(StringContains.containsString("customerName"))
+                        )
+                )
+        ;
     }
 
     /**
